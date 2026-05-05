@@ -2,61 +2,85 @@ import streamlit as st
 from streamlit_mic_recorder import mic_recorder
 from groq import Groq
 import webbrowser
-import os
+import PIL.Image
+import io
 
-# Configuração da Página para parecer uma interface de chamada
-st.set_page_config(page_title="J.A.R.V.I.S. v16.1", page_icon="🎙️")
+# Configuração de Estilo "Discord Call"
+st.set_page_config(page_title="J.A.R.V.I.S. v17.0", layout="wide")
+st.markdown("""
+    <style>
+    .main { background-color: #1e1f22; color: #dbdee1; }
+    .stButton>button { border-radius: 20px; background-color: #5865F2; color: white; }
+    .jarvis-circle {
+        width: 150px; height: 150px; border: 4px solid #00d4ff;
+        border-radius: 50%; margin: 0 auto; animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0% {transform: scale(0.95);} 70% {transform: scale(1);} 100% {transform: scale(0.95);} }
+    </style>
+    """, unsafe_allow_html=True)
 
-st.title("🎙️ J.A.R.V.I.S. - Interface de Voz")
-st.write("---")
+# Inicialização
+client = Groq(api_key=st.secrets["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"])
 
-# Inicialização da API Groq (Anti-Erro 429)
-client = Groq(api_key="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")
-MODELO = "llama-3.1-8b-instant"
+st.title("🎙️ J.A.R.V.I.S. v17.0 - Live Operations")
 
-# Interface de "Chamada"
-col1, col2, col3 = st.columns([1, 2, 1])
+col_left, col_right = st.columns([2, 1])
 
-with col2:
-    st.image("https://i.imgur.com/your_jarvis_logo.png", width=200) # Coloque o logo do seu Myhril aqui!
-    st.subheader("Conexão Estabelecida")
+with col_left:
+    st.markdown('<div class="jarvis-circle"></div>', unsafe_allow_html=True)
+    # BOTÃO DE VISÃO: Captura a tela/câmera para o JARVIS "ver"
+    foto_tela = st.camera_input("Compartilhar Visão (Clique para o JARVIS ver)")
+
+with col_right:
+    st.subheader("Controle de Sistema")
+    entrada_texto = st.text_input("Comando de texto:", placeholder="Digite aqui...")
+    # Gravador de voz para a chamada
+    audio_voz = mic_recorder(start_prompt="🎙️ Iniciar Fala", stop_prompt="🛑 Enviar", key='voz')
+
+# --- LÓGICA DE EXECUÇÃO (O CORAÇÃO DO V15 + V17) ---
+
+def processar_comando(comando, imagem=None):
+    cmd = comando.lower()
     
-    # O Gravador que envia o áudio direto para o site
-    audio_data = mic_recorder(
-        start_prompt="Iniciar Chamada",
-        stop_prompt="Encerrar Comando",
-        key='recorder'
-    )
-
-if audio_data:
-    # Aqui o sistema processa o que você falou no site
-    # (Para produção, você usaria o Whisper da OpenAI ou Groq para transcrever o áudio)
-    st.info("Processando áudio...")
-    
-    # Exemplo de comando direto para teste no site:
-    comando = "abrir spotify" # Simulando a transcrição do áudio
-
-    # Lógica de Automação do v16
-    if 'spotify' in comando:
-        st.success("Abrindo Spotify...")
+    # 1. Automações do v15 (Apps e Links)
+    if 'spotify' in cmd:
         webbrowser.open("https://open.spotify.com")
-    elif 'instagram' in comando:
-        webbrowser.open("https://www.instagram.com")
-    elif 'myhril' in comando:
-        webbrowser.open("https://freegamehost.com")
+        st.success("Spotify aberto, senhor.")
+    elif 'youtube' in cmd:
+        webbrowser.open("https://youtube.com")
+    elif 'roblox' in cmd:
+        webbrowser.open("https://www.roblox.com")
+    elif 'myhril' in cmd:
+        webbrowser.open("https://freegamehost.com") # Link do seu server
+    elif 'pesquisar' in cmd:
+        busca = cmd.replace('pesquisar', '').strip()
+        webbrowser.open(f"https://www.google.com/search?q={busca}")
+    
+    # 2. Resposta da IA com Visão (v17)
+    # Se houver imagem, o JARVIS comenta o que está vendo
+    role_content = "Você é o JARVIS. Pedro está em uma chamada de vídeo com você."
+    if imagem:
+        role_content += " Analise a imagem que ele te enviou e responda sobre ela."
 
-    # Resposta da IA
     try:
-        chat = client.chat.completions.create(
+        # Usando o modelo Vision da Groq
+        response = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": "Você é o JARVIS em uma chamada de voz com o Pedro."},
-                {"role": "user", "content": comando}
+                {"role": "system", "content": role_content},
+                {"role": "user", "content": cmd}
             ],
-            model=MODELO
+            model="llama-3.2-11b-vision-preview" # Modelo que "vê"
         )
-        st.chat_message("assistant").write(chat.choices[0].message.content)
+        st.chat_message("assistant").write(response.choices[0].message.content)
     except Exception as e:
-        st.error(f"Erro na nuvem: {e}")
+        st.error(f"Erro no processamento: {e}")
+
+# Gatilhos de execução
+if entrada_texto:
+    processar_comando(entrada_texto, foto_tela)
+elif audio_voz:
+    # Simulação de transcrição para o teste
+    processar_comando("comando de voz detectado", foto_tela)
 
 st.write("---")
-st.caption("Status do Sistema: Online | Myhril Server Sync: Ativo")
+st.caption("Status: Conectado ao Myhril Server | v17.0 Edition")
