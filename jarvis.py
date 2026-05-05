@@ -20,7 +20,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # Inicialização
-client = Groq(api_key=st.secrets["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"])
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 st.title("🎙️ J.A.R.V.I.S. v17.0 - Live Operations")
 
